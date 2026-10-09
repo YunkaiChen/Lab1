@@ -307,7 +307,11 @@ int roundEvenPow2(int x, int n) {
 int midpointTowardFirst(int x, int y) {
   int avg = (x & y) + ((x ^ y) >> 1);
   int isOdd = (x ^ y) & 1;
-  int xGtY = ((x + (~y + 1)) >> 31) + 1;
+  int sx = x >> 31;
+  int sy = y >> 31;
+  int d = sx ^ sy;
+  int sub = (x + (~y + 1)) >> 31;
+  int xGtY = (d & (~sx)) | ((d ^ 1) & (~sub));
   return avg + (isOdd & xGtY);
 }
 
@@ -542,14 +546,10 @@ int bitCount(int x) {
  */
 int bitReverse(int x)
 {
-  int m1, m2, m4, m8;
-  m1 = 0x55 | (0x55 << 8);
-  m1 = m1 | (m1 << 16);
-  m2 = 0x33 | (0x33 << 8);
-  m2 = m2 | (m2 << 16);
-  m4 = 0x0F | (0x0F << 8);
-  m4 = m4 | (m4 << 16);
-  m8 = 0xFF | (0xFF << 16);
+  int m1 = 0x55 | (0x55 << 8); m1 |= m1 << 16;
+  int m2 = 0x33 | (0x33 << 8); m2 |= m2 << 16;
+  int m4 = 0x0F | (0x0F << 8); m4 |= m4 << 16;
+  int m8 = 0xFF | (0xFF << 16);
   x = ((x >> 1) & m1) | ((x & m1) << 1);
   x = ((x >> 2) & m2) | ((x & m2) << 2);
   x = ((x >> 4) & m4) | ((x & m4) << 4);
