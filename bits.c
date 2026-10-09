@@ -360,7 +360,7 @@ int mul5Sat(int x) {
   int ovf4 = ovf4a | ovf4b;
   int ovf5 = (sx ^ s5) & 1;
   int ovf = ovf4 | ovf5;
-  int sat = (sx & (1 << 31)) | (~sx & ~(1 << 31));
+  int sat = sx ^ ~(1 << 31);
   int m = ~ovf + 1;
   return (sat & m) | (x5 & ~m);
 }
@@ -545,16 +545,16 @@ int bitCount(int x) {
  */
 int bitReverse(int x)
 {
-  int m1, m2, m4, m8;
-  m4 = 0x0F | (0x0F << 8);
-  m4 = m4 | (m4 << 16);
+  int m1, m2, m4, m8, m16;
+  m16 = 0xFF | (0xFF << 8);
+  m8 = m16 ^ (m16 << 8);
+  m4 = m8 ^ (m8 << 4);
   m2 = m4 ^ (m4 << 2);
   m1 = m2 ^ (m2 << 1);
-  m8 = 0xFF | (0xFF << 16);
   x = ((x >> 1) & m1) | ((x & m1) << 1);
   x = ((x >> 2) & m2) | ((x & m2) << 2);
   x = ((x >> 4) & m4) | ((x & m4) << 4);
   x = ((x >> 8) & m8) | ((x & m8) << 8);
-  x = (x >> 16) | (x << 16);
+  x = ((x >> 16) & m16) | (x << 16);
   return x;
 }
