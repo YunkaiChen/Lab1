@@ -349,10 +349,17 @@ int isBetweenEitherOrder(int x, int a, int b) {
  *   Rating: 7
  */
 int mul5Sat(int x) {
-  int x5 = (x << 2) + x;
+  int x4 = x << 2;
+  int x5 = x4 + x;
   int sx = x >> 31;
+  int s4 = x4 >> 31;
   int s5 = x5 >> 31;
-  int ovf = (sx ^ s5) & 1;
+  int ovf4a = (sx ^ s4) & 1;
+  int hi = x >> 30;
+  int ovf4b = (!!hi) & (!!~hi);
+  int ovf4 = ovf4a | ovf4b;
+  int ovf5 = (sx ^ s5) & 1;
+  int ovf = ovf4 | ovf5;
   int sat = (sx & (1 << 31)) | (~sx & ~(1 << 31));
   int m = ~ovf + 1;
   return (sat & m) | (x5 & ~m);
@@ -402,32 +409,33 @@ unsigned floatScaleThreeHalves(unsigned uf) {
   unsigned sign = uf & 0x80000000;
   unsigned exp = (uf >> 23) & 0xFF;
   unsigned frac = uf & 0x7FFFFF;
-
   if (exp == 0xFF) return uf;
   if (exp == 0 && frac == 0) return uf;
   if (exp == 0) {
     unsigned m = frac * 3;
-    if (m & 0x800000) {
-      unsigned e = 1;
-      unsigned mm = m >> 1;
-      if ((m & 1) && (mm & 1)) mm++;
-      if (mm & 0x800000) { mm >>= 1; e++; }
-      return sign | (e << 23) | (mm & 0x7FFFFF);
-    }
-    return sign | (m & 0x7FFFFF);
+    unsigned q = m >> 1;
+    if ((m & 1) && (q & 1)) q++;
+    if (q & 0x800000) return sign | (1 << 23) | (q & 0x7FFFFF);
+    return sign | (q & 0x7FFFFF);
   }
   unsigned mant = frac | 0x800000;
-  unsigned m3 = mant * 3;
-  unsigned e = exp;
-  if (m3 & 0x2000000) { m3 >>= 1; e++; }
-  unsigned round = m3 & 1;
-  m3 >>= 1;
-  if (round) {
-    m3++;
-    if (m3 & 0x800000) { m3 >>= 1; e++; }
+  unsigned m3 = mant + (mant << 1);
+  int e = (int)exp;
+  unsigned mout;
+  if (m3 & 0x2000000) {
+    unsigned q = m3 >> 2;
+    unsigned r = m3 & 3;
+    if (r > 2 || (r == 2 && (q & 1))) q++;
+    mout = q; e++;
+  } else {
+    unsigned q = m3 >> 1;
+    unsigned r = m3 & 1;
+    if (r && (q & 1)) q++;
+    mout = q;
+    if (mout & 0x1000000) { mout >>= 1; e++; }
   }
   if (e >= 0xFF) return sign | 0x7F800000;
-  return sign | (e << 23) | (m3 & 0x7FFFFF);
+  return sign | (e << 23) | (mout & 0x7FFFFF);
 }
 
 // P16
@@ -450,9 +458,8 @@ unsigned floatRoundEven(unsigned uf) {
   int e = (int)exp - 127;
   if (e < -1) return sign;
   if (e == -1) {
-    if (frac > 0x400000) return sign | (127 << 23);
-    if (frac == 0x400000) return sign;
-    return sign;
+    if (frac == 0) return sign;
+    return sign | 0x3F800000;
   }
   if (e >= 23) return uf;
   unsigned mant = frac | 0x800000;
@@ -461,12 +468,12 @@ unsigned floatRoundEven(unsigned uf) {
   unsigned fp = mant & ((1 << shift) - 1);
   unsigned half = 1 << (shift - 1);
   if (fp > half || (fp == half && (ip & 1))) ip++;
-  int ne = 0;
-  unsigned tmp = ip;
-  while (tmp > 1) { tmp >>= 1; ne++; }
-  ip = ip << (23 - ne);
-  if (ne + 127 >= 0xFF) return sign | 0x7F800000;
-  return sign | ((ne + 127) << 23) | (ip & 0x7FFFFF);
+  unsigned mout = ip << (23 - e);
+  int ee = e;
+  if (mout & 0x1000000) { mout >>= 1; ee++; }
+  int expf = ee + 127;
+  if (expf >= 0xFF) return sign | 0x7F800000;
+  return sign | (expf << 23) | (mout & 0x7FFFFF);
 }
 
 // P17
@@ -538,14 +545,17 @@ int bitCount(int x) {
  */
 int bitReverse(int x)
 {
-  int m1 = 0x55 | (0x55 << 8); m1 |= m1 << 16;
-  int m2 = 0x33 | (0x33 << 8); m2 |= m2 << 16;
-  int m4 = 0x0F | (0x0F << 8); m4 |= m4 << 16;
-  int m8 = 0xFF | (0xFF << 16);
+  int m1, m2, m4, m8, m16;
+  m4 = 0x0F | (0x0F << 8);
+  m4 = m4 | (m4 << 16);
+  m2 = m4 ^ (m4 << 2);
+  m1 = m2 ^ (m2 << 1);
+  m8 = 0xFF | (0xFF << 16);
+  m16 = 0xFF | (0xFF << 8);
   x = ((x >> 1) & m1) | ((x & m1) << 1);
   x = ((x >> 2) & m2) | ((x & m2) << 2);
   x = ((x >> 4) & m4) | ((x & m4) << 4);
   x = ((x >> 8) & m8) | ((x & m8) << 8);
-  x = (x >> 16) | (x << 16);
+  x = ((x >> 16) & m16) | (x << 16);
   return x;
 }
