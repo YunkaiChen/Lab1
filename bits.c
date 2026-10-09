@@ -266,11 +266,10 @@ int oddParity(int x) {
  */
 int rotateRightBits(int x, int n) {
   n = n & 31;
-  int lowMask = (1 << n) + ~0;
-  int shift = 33 + ~n;
-  int lowPart = (x & lowMask) << shift;
-  int highPart = ((x & ~lowMask) >> n) & ~(~0 << shift);
-  return lowPart | highPart;
+  int s = 33 + ~n;
+  int a = x << s;
+  int b = (x >> n) & ~(~0 << s);
+  return a | b;
 }
 
 // P10
@@ -350,17 +349,10 @@ int isBetweenEitherOrder(int x, int a, int b) {
  *   Rating: 7
  */
 int mul5Sat(int x) {
-  int x4 = x << 2;
-  int x5 = x4 + x;
+  int x5 = (x << 2) + x;
   int sx = x >> 31;
-  int s4 = x4 >> 31;
   int s5 = x5 >> 31;
-  int ovf4a = (sx ^ s4) & 1;
-  int hi = x >> 30;
-  int ovf4b = (!!hi) & (!!~hi);
-  int ovf4 = ovf4a | ovf4b;
-  int ovf5 = (sx ^ s5) & 1;
-  int ovf = ovf4 | ovf5;
+  int ovf = (sx ^ s5) & 1;
   int sat = (sx & (1 << 31)) | (~sx & ~(1 << 31));
   int m = ~ovf + 1;
   return (sat & m) | (x5 & ~m);
@@ -410,16 +402,15 @@ unsigned floatScaleThreeHalves(unsigned uf) {
   unsigned sign = uf & 0x80000000;
   unsigned exp = (uf >> 23) & 0xFF;
   unsigned frac = uf & 0x7FFFFF;
-  if (exp == 0xFF) return uf; 
+
+  if (exp == 0xFF) return uf;
   if (exp == 0 && frac == 0) return uf;
   if (exp == 0) {
     unsigned m = frac * 3;
     if (m & 0x800000) {
       unsigned e = 1;
       unsigned mm = m >> 1;
-      if (m & 1) {
-        if (mm & 1) mm++;
-      }
+      if ((m & 1) && (mm & 1)) mm++;
       if (mm & 0x800000) { mm >>= 1; e++; }
       return sign | (e << 23) | (mm & 0x7FFFFF);
     }
@@ -428,7 +419,7 @@ unsigned floatScaleThreeHalves(unsigned uf) {
   unsigned mant = frac | 0x800000;
   unsigned m3 = mant * 3;
   unsigned e = exp;
-  if (m3 & 0x1000000) { m3 >>= 1; e++; }
+  if (m3 & 0x2000000) { m3 >>= 1; e++; }
   unsigned round = m3 & 1;
   m3 >>= 1;
   if (round) {
@@ -470,9 +461,10 @@ unsigned floatRoundEven(unsigned uf) {
   unsigned fp = mant & ((1 << shift) - 1);
   unsigned half = 1 << (shift - 1);
   if (fp > half || (fp == half && (ip & 1))) ip++;
-  int ne = e;
-  while (ip >= (1 << 24)) { ip >>= 1; ne++; }
-  while (ip < (1 << 23) && ne > 0) { ip <<= 1; ne--; }
+  int ne = 0;
+  unsigned tmp = ip;
+  while (tmp > 1) { tmp >>= 1; ne++; }
+  ip = ip << (23 - ne);
   if (ne + 127 >= 0xFF) return sign | 0x7F800000;
   return sign | ((ne + 127) << 23) | (ip & 0x7FFFFF);
 }
