@@ -325,27 +325,15 @@ int isBetweenEitherOrder(int x, int a, int b) {
   int sx = (x >> 31) & 1;
   int sa = (a >> 31) & 1;
   int sb = (b >> 31) & 1;
-  int negx = ~x + 1;
-
-  int dab = sa ^ sb;
-  int sab = ((a + (~b + 1)) >> 31) & 1;
-  int a_le_b = (dab & sa) | ((dab ^ 1) & (sab ^ 1));
-
-  int m1 = ~a_le_b + 1;
-  int mn = (a & m1) | (b & ~m1);
-  int mx = mn ^ a ^ b;
-
-  int smn = (mn >> 31) & 1;
-  int d1 = smn ^ sx;
-  int s1 = ((mn + negx) >> 31) & 1;
-  int mn_le_x = (d1 & smn) | ((d1 ^ 1) & (s1 ^ 1));
-
-  int smx = (mx >> 31) & 1;
-  int d2 = smx ^ sx;
-  int s2 = ((mx + negx) >> 31) & 1;
-  int x_le_mx = (d2 & sx) | ((d2 ^ 1) & (s2 ^ 1));
-
-  return mn_le_x & x_le_mx;
+  int xa = x + (~a + 1);
+  int xb = x + (~b + 1);
+  int da = sx ^ sa;
+  int db = sx ^ sb;
+  int ra = (da & sx) | ((da ^ 1) & ((xa >> 31) & 1));
+  int rb = (db & sx) | ((db ^ 1) & ((xb >> 31) & 1));
+  int diff = ra ^ rb;
+  int zero = (!xa) | (!xb);
+  return diff | zero;
 }
 
 // P13
