@@ -545,17 +545,16 @@ int bitCount(int x) {
  */
 int bitReverse(int x)
 {
-  int m1, m2, m4, m8, m16;
+  int m1, m2, m4, m8;
   m4 = 0x0F | (0x0F << 8);
   m4 = m4 | (m4 << 16);
   m2 = m4 ^ (m4 << 2);
   m1 = m2 ^ (m2 << 1);
   m8 = 0xFF | (0xFF << 16);
-  m16 = 0xFF | (0xFF << 8);
   x = ((x >> 1) & m1) | ((x & m1) << 1);
   x = ((x >> 2) & m2) | ((x & m2) << 2);
   x = ((x >> 4) & m4) | ((x & m4) << 4);
   x = ((x >> 8) & m8) | ((x & m8) << 8);
-  x = ((x >> 16) & m16) | (x << 16);
+  x = (x >> 16) | (x << 16);
   return x;
 }
